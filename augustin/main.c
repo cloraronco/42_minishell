@@ -6,41 +6,56 @@
 /*   By: aucousin <aucousin@student.42lyon.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/05/30 10:51:22 by aucousin          #+#    #+#             */
-/*   Updated: 2022/06/02 09:15:52 by aucousin         ###   ########lyon.fr   */
+/*   Updated: 2022/06/09 10:34:07 by aucousin         ###   ########lyon.fr   */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "./hdrs/minishell.h"
 
-void	msh_init(t_minishell *msh)
-{
-	msh->status = 1;
-	msh->tokens = NULL;
-}
-
-void	msh_loop(void)
+void	msh_loop(char **envp)
 {
 	t_minishell	msh;
 	char		*tmp;
-	//char		*readline;
 
-	msh_init(&msh);
-	//readline = ft_readline();
+	msh_init(&msh, envp);
+//	signal(SIGINT, sig_quit);
+//	signal(SIGQUIT, action);
 	while (msh.status != FINISHED)
 	{
-		// printf("minish >");
-		write(0, "minish >  ", 9);
-		tmp = ft_read_line(BUFFER_SIZE, 0, 0);
+		write(1, "minish >  ", 9);
+		tmp = NULL;
 		msh.line = readline(tmp);
 		free(tmp);
 		add_history(msh.line);
-		//msh_get_tokens(&msh, msh.line);
+		msh_get_tokens(&msh, msh.line);
+		ft_printtoken(msh.tokens);
+		if (!ft_checkred(msh.tokens))
+		{
+			printf("INVALID LINE !!!!!\n");
+			ft_tokensclear(&msh.tokens);
+			return ;
+		}
 		printf("line = %s\n", msh.line);
-		//ft_printlist(msh.tokens);
+		msh_create_process(&msh, msh.tokens);
+		ft_tokensclear(&msh.tokens);
+		msh_parse_redir(&msh);
+		printf("on va la ? \n");
+		ft_printprocess(msh.process);
+		msh_execute(&msh);
+		ft_processclear(&msh.process);
 	}
 }
 
-int	main()
+int	main(int argc, char **argv, char **envp)
 {
-	msh_loop();
+	(void)argc;
+	(void)argv;
+	if (!envp[0])
+	{
+		printf("please don't destry your environnement, it's not eco-friendly :@\n");
+		return (0);
+	}
+	//msh_env(envp);
+	msh_loop(envp);
+//	rl_clear_history();
 }

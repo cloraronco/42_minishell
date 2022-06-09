@@ -3,10 +3,17 @@ NAME = minishell
 READLINE_LIB_DIR_FLAG := -L$(shell brew --prefix readline)/lib
 READLINE_INC_DIR_FLAG := -I$(shell brew --prefix readline)/include
 
-SRC = main.c srcs/parsing.c srcs/utils.c srcs/list_utils.c srcs/read_line.c
+SRC =	main.c \
+		srcs/parsing/parsing.c  srcs/parsing/read_line.c srcs/parsing/open_close.c\
+		srcs/utils/utils.c srcs/utils/list_addback.c srcs/utils/list_clear.c srcs/utils/list_new.c srcs/utils/list_print.c srcs/utils/utils2.c\
+		srcs/builtins/msh_env.c \
+		srcs/init.c \
+		srcs/exec/exec.c \
+		
 
 OBJ = $(SRC:.c=.o)
 OBJSDIR	= objs/
+
 OBJS = $(addprefix $(OBJSDIR), $(OBJ))
 
 FLAGS = -Wall -Wextra -Werror
@@ -24,6 +31,10 @@ all: $(NAME)
 $(OBJSDIR)%.o : %.c		hdrs/minishell.h libft/libft.a Makefile
 	@mkdir -p $(OBJSDIR)
 	@mkdir -p $(OBJSDIR)srcs
+	@mkdir -p $(OBJSDIR)srcs/parsing
+	@mkdir -p $(OBJSDIR)srcs/utils
+	@mkdir -p $(OBJSDIR)srcs/builtins
+	@mkdir -p $(OBJSDIR)srcs/exec
 	@gcc $(READLINE_INC_DIR_FLAG) $(FLAGS) -c $< -o $@
 	@echo $(CURSIVE)$(GRAY) "     - creating .o ..." $(NONE)
 

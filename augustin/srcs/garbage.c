@@ -6,7 +6,7 @@
 /*   By: aucousin <aucousin@student.42lyon.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/06/02 07:03:15 by aucousin          #+#    #+#             */
-/*   Updated: 2022/06/02 07:34:42 by aucousin         ###   ########lyon.fr   */
+/*   Updated: 2022/06/09 10:32:18 by aucousin         ###   ########lyon.fr   */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -123,4 +123,176 @@ int		msh_count_tokens(char *line)
 			count++;
 		}
 	}
+}
+
+void	msh_child_process(t_minishell *msh, t_process *pipex)
+{
+	int		i;
+	char	*cmd;
+
+	if (pipex->infile && pipex->next && !pipex->outfile) // there is an infile and there is a next
+	{
+		if (dup2(pipex->file_in, STDIN_FILENO < 0))
+			perror("Fork: ");
+		if (dup2(pipex->end[1], STDOUT_FILENO) < 0)
+			perror("Fork: ");
+		close(pipex->next->end[0]);
+	}
+	else if (!pipex->piped && pipex->next && !pipex->outfile)
+	{
+		if (dup2(pipex->end[1], STDOUT_FILENO) < 0)
+			perror("Fork: ");
+	}
+	else if (pipex->next && !pipex->outfile)
+	{
+		if (dup2(pipex->end[1], STDIN_FILENO < 0))
+			perror("Fork: ");
+		if (dup2(pipex->next->end[1], STDOUT_FILENO < 0))
+			perror("Fork: ");
+	}
+	else if (!pipex->next || pipex->outfile)
+	{
+		if (dup2(pipex->end[0], STDIN_FILENO) < 0)
+			perror("Fork: ");
+		if (dup2(pipex->file_out, STDOUT_FILENO) < 0)
+			perror("Fork: ");
+	}
+	close(pipex->end[1]);
+	if (dup2(pipex->file_out, STDOUT_FILENO) < 0)
+		perror("Fork: ");
+	if (dup2(pipex->end[0], STDIN_FILENO) < 0)
+		perror("Fork: ");
+	close(pipex->file_out);
+	
+	else if (!pipex->piped && !pipex->next && !pipex->outfile)
+	{
+		(void);
+	}
+
+
+
+
+	
+	if (dup2(pipex->end[1], STDIN_FILENO) < 0)
+	close(pipex->next->end[0]);
+
+	if (dup2(pipex->file_in, STDIN_FILENO < 0))
+		perror("Fork: ");
+	if (dup2(pipex->file_in, STDIN_FILENO) < 0)
+		perror("Fork: ");
+	dup2(pipex->end[1], STDOUT_FILENO);
+	close(pipex->file_in);
+	i = 0;
+	while (msh->paths[i])
+	{
+		cmd = ft_strjoin(msh->paths[i], pipex->cmd[0]);
+		if (!cmd)
+			exit(EXIT_FAILURE);
+		if (access(cmd, F_OK) == 0)
+			execve(cmd, pipex->cmd, msh->envp);
+		free(cmd);
+		i++;
+	}
+	write(2, "pipex: command not found: ", 26);
+	write(2, pipex->cmd[0], ft_strlen(pipex->cmd[0]));
+	write(2, "\n", 1);
+	exit (1);
+}
+
+void	child_one(t_pipex *pipex)
+{
+	int		i;
+	char	*cmd;
+
+	close(pipex->end[0]);
+	if (dup2(pipex->file_in, STDIN_FILENO < 0))
+		perror("Fork: ");
+	if (dup2(pipex->end[1], STDOUT_FILENO) < 0)
+		perror("Fork: ");
+	dup2(pipex->end[1], STDOUT_FILENO);
+	close(pipex->file_in);
+	i = 0;
+	while (pipex->paths[i])
+	{
+		cmd = ft_strjoin(pipex->paths[i], pipex->cmd1[0]);
+		if (!cmd)
+			exit(EXIT_FAILURE);
+		if (access(cmd, F_OK) == 0)
+			execve(cmd, pipex->cmd1, pipex->env);
+		free(cmd);
+		i++;
+	}
+	write(2, "pipex: command not found: ", 26);
+	write(2, pipex->cmd1[0], ft_strlen(pipex->cmd1[0]));
+	write(2, "\n", 1);
+	exit (1);
+}
+
+void	child_two(t_pipex *pipex)
+{
+	int		i;
+	char	*cmd;
+
+	close(pipex->end[1]);
+	if (dup2(pipex->file_out, STDOUT_FILENO) < 0)
+		perror("Fork: ");
+	if (dup2(pipex->end[0], STDIN_FILENO) < 0)
+		perror("Fork: ");
+	close(pipex->file_out);
+	i = 0;
+	while (pipex->paths[i])
+	{
+		cmd = ft_strjoin(pipex->paths[i], pipex->cmd2[0]);
+		if (!cmd)
+			exit(EXIT_FAILURE);
+		if (access(cmd, F_OK) == 0)
+			execve(cmd, pipex->cmd2, pipex->env);
+		free(cmd);
+		i++;
+	}
+	write(2, "pipex: command not found: ", 26);
+	write(2, pipex->cmd2[0], ft_strlen(pipex->cmd2[0]));
+	write(2, "\n", 1);
+	exit (127);
+}
+
+int	ft_child_status(int child_status)
+{
+	int	return_val;
+
+	if (WIFEXITED(child_status) != 0)
+		return_val = WEXITSTATUS(child_status);
+	else
+	{
+		if (WIFSIGNALED(child_status) != 0)
+			return_val = WTERMSIG(child_status) + 128;
+		else
+			return (0);
+	}
+	return (return_val);
+}
+
+void	ft_pipe(t_pipex *pipex)
+{
+	int		status;
+	pid_t	child1;
+	pid_t	child2;
+
+	pipe(pipex->end);
+	child1 = fork();
+	if (child1 < 0)
+		perror("Fork: ");
+	if (!child1)
+		child_one(pipex);
+	child2 = fork();
+	if (child2 < 0)
+		perror("Fork: ");
+	if (!child2)
+		child_two(pipex);
+	close(pipex->end[0]);
+	close(pipex->end[1]);
+	waitpid(child1, &status, 0);
+	waitpid(child2, &status, 0);
+	if (ft_child_status(status) != 0)
+		exit (ft_child_status(status));
 }
